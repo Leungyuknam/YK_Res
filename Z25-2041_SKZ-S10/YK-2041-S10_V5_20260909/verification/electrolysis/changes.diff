@@ -1,0 +1,162 @@
+--- before/c\Function\Function.c
++++ c\Function\Function.c
+@@ -1,4 +1,79 @@
+ #include "h\Allinclude.h"
++
++// 电解：每次开机一轮；异常结束本轮，重新开机才允许再次运行。
++#define C_DJ_MINUTE_TICKS       6000U  // 60秒 / 10ms
++#define C_DJ_TOTAL_MINUTES      30U
++#define C_DJ_IDLE              0
++#define C_DJ_WAIT              1
++#define C_DJ_RUN               2
++
++void F_mElectrolysisControl(void)
++{
++    static U8 xdata s_u8PowerBak = 0;
++    static U8 xdata s_u8State = C_DJ_IDLE;
++    static U8 xdata s_u8Minutes = 0;
++    static U16 xdata s_u16MinuteTicks = 0;
++
++    if(s_u8PowerBak != g_stSys.bTurnOn)
++    {
++        s_u8PowerBak = g_stSys.bTurnOn;
++        s_u8State = g_stSys.bTurnOn ? C_DJ_WAIT : C_DJ_IDLE;
++        s_u8Minutes = 0;
++        s_u16MinuteTicks = 0;
++        P_DJ1 = 0;
++        P_DJ2 = 0;
++    }
++
++    // 每圈检查关机、自检和运行异常，不等待计时节拍。
++    if(!g_stSys.bTurnOn || g_u8TestState)
++        s_u8State = C_DJ_IDLE;
++    if(s_u8State == C_DJ_RUN &&
++       (g_stSys.bWaterLack || g_stSys.bTankRemoved || g_stSys.bIsAirDrying))
++        s_u8State = C_DJ_IDLE;
++
++    if(s_u8State == C_DJ_IDLE)
++    {
++        P_DJ1 = 0;
++        P_DJ2 = 0;
++        return;
++    }
++    if(!F_GetTimeTick(C_TIME_10ms)) return;
++
++    if(s_u8State == C_DJ_WAIT)
++    {
++        // 上电默认标志不等于已确认有水，必须完成水位检测。
++        if(!g_bElectrolysisWaterReady || g_stSys.bWaterLack ||
++           g_stSys.bTankRemoved || g_stSys.bIsAirDrying) return;
++        s_u8State = C_DJ_RUN;
++        P_DJ1 = 1;
++        P_DJ2 = 0;
++        return; // 从真正输出后的下一个节拍开始累计
++    }
++
++    if(++s_u16MinuteTicks >= C_DJ_MINUTE_TICKS)
++    {
++        s_u16MinuteTicks = 0;
++        P_DJ1 = 0;
++        P_DJ2 = 0;
++        if(++s_u8Minutes >= C_DJ_TOTAL_MINUTES)
++            s_u8State = C_DJ_IDLE;
++        return; // 换向前保持00一个10ms节拍，间隔计入30分钟总时长
++    }
++    if(s_u16MinuteTicks == 1)
++    {
++        if(s_u8Minutes & 1)
++        {
++            P_DJ1 = 0;
++            P_DJ2 = 1;
++        }
++        else
++        {
++            P_DJ2 = 0;
++            P_DJ1 = 1;
++        }
++    }
++}
++
+ 
+ // =================================================================================
+ // 全局/静态变量
+--- before/c\Function\Function.h
++++ c\Function\Function.h
+@@ -28,6 +28,7 @@
+ extern void F_LoadDry();
+ extern void F_EnterAirDry();
+ extern void F_mFunctionSchdule(void);
++extern void F_mElectrolysisControl(void);
+ extern void F_mSystemInital(void);
+ extern void F_FanUpdate(void);
+ #endif --- before/c\SenseDeal\SenseDeal.c
++++ c\SenseDeal\SenseDeal.c
+@@ -8,6 +8,7 @@
+ 
+ // 计算出的湿度区间 (Function.c 需要读取它)
+ U8 xdata g_u8HumiRange = c_HUMI_RANGE_1;
++U8 xdata g_bElectrolysisWaterReady = 0; // 已稳定确认有水，供电解启动使用
+ 
+ // 湿度补偿值
+ U8 xdata g_u8HumiComp = 8;
+@@ -118,6 +119,7 @@
+     static U8 s_u8WaterLackCnt = 0;       // 缺水消抖计数器
+     static U8 s_u8WaterFullCnt = 0;     // 恢复有水消抖计数器
+     
++    static U8 s_u8ElectrolysisWaterCnt = 0;
+     U8 u8ActiveHalls = 0; // 统计当前被触发的霍尔数量
+ 
+     // 1. 统计触发数量 (假设低电平 0 为触发)
+@@ -126,6 +128,17 @@
+     if(!P_HALL3) u8ActiveHalls++;
+     if(!P_HALL4) u8ActiveHalls++;
+ 
++    // 独立确认恰好一个霍尔持续触发2秒，避免默认值或提箱被当成有水。
++    if(u8ActiveHalls == 1)
++    {
++        if(s_u8ElectrolysisWaterCnt < 200) s_u8ElectrolysisWaterCnt++;
++        if(s_u8ElectrolysisWaterCnt >= 200) g_bElectrolysisWaterReady = 1;
++    }
++    else
++    {
++        s_u8ElectrolysisWaterCnt = 0;
++    }
++
+     // =========================================================
+     // 2. 提箱逻辑判定 (0个霍尔触发)
+     // =========================================================
+@@ -161,6 +174,7 @@
+             else
+             {
+                 g_stSys.bWaterLack = 1; // 确认缺水
++                g_bElectrolysisWaterReady = 0;
+                 if(s_u8TankWaterCheckState == C_TANK_WATER_CHECK_WAIT)
+                 {
+                     s_u8TankWaterCheckState = C_TANK_WATER_CHECK_READY;
+@@ -184,6 +198,7 @@
+     }
+     else
+     {
++        g_bElectrolysisWaterReady = 0;
+         // 无水箱时不对外上报缺水；放回后重新完成水位防抖
+         s_u8WaterLackCnt = 0;
+         s_u8WaterFullCnt = 0;
+--- before/c\SenseDeal\SenseDeal.h
++++ c\SenseDeal\SenseDeal.h
+@@ -3,6 +3,7 @@
+ 
+ // 对外暴露计算好的湿度区间，供 Function.c 的智能模式使用
+ extern U8 xdata g_u8HumiRange;
++extern U8 xdata g_bElectrolysisWaterReady;
+ 
+ #define c_HUMI_RANGE_1		0
+ #define c_HUMI_RANGE_2		1
+--- before/c\Main\main.c
++++ c\Main\main.c
+@@ -61,5 +61,6 @@
+         S_API_WifiUartDeal(); //发送接收处理函数
+ 		S_API_Wifi_main();//WIFI主函数
+ 		OTAProcesingTimeDeal();
++        F_mElectrolysisControl(); // 自检也必须经过电解关断检查
+ 	}
+ }

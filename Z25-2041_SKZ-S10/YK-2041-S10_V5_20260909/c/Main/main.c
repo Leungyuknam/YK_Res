@@ -1,0 +1,66 @@
+#include "h\Allinclude.h"
+#include "h\SH79F9463A_XDATA.H"
+/*   
+通用框架版本V1.0 2022.10.24
+提供的服务：
+1.1	定时中断模块，固定为125US定时中断，产生系统基准时间标志。
+1.2	系统时钟信号产生模块，文件名：SystemTime.c  提供服务F_mSystemTimeDeal();
+1.3	AD检测服务提供模块。文件名：AD.c  提供服务：unsigned char F_GetAD(unsigned char ch,AD_Structure *AD_Str,unsigned int MaxValue,unsigned int MinValue)
+1.4	按键扫描和处理服务模块。文件名: Key.c 提供服务：void F_mKeyControl(void); 需要配置keyCfg.h表格，并实现按键处理函数在KeyFunction.c文件中
+提供的接口：
+2.1    F_mCpuInital(); CPU初始化，需要你添加代码在此函数里面
+2.2    F_mAllADSenseDeal(); AD 处理，需要你添加代码在此函数里面
+2.2    F_mFunctionSchdule(); 项目功能处理总入口，执行时间可调。
+        此接口为程序总控制逻辑的入口，负责程序总体逻辑的控制最终输出对应负载的输出信号。一般情况建议此接口内的代码执行周期为100MS，有特殊功能要求的可做调整。
+2.3    F_mSelfTestSchdule(); 自检执行进入接口。
+2.4    F_mSystemInital();逻辑层面的初始化 
+*/
+void main()
+{
+	cli();
+    F_mCpuInital();//CPU初始化操作
+    //---WIFI初始---------
+	CodeWriteProc();	 	 //通过读码工装读取SN码
+	S_API_WifiDataInit();	 //读取芯片存储的SN码
+    S_API_WifiCommInit();    //UART变量初始化
+    g_bSnCodeError = fgSnCodeError;//赋值SN状态
+	OTAOkCheck();
+    //--------------------
+	/* 触摸按键初始化 */
+	InitKey();
+    F_mSystemInital();//项目逻辑层数据、状态初始化操作
+    F_mDispInital();
+	BUZ_POWERON();
+	sei();
+	while(1)
+	{           
+		//---固有接口可以根据项目选择需要哪些接口-----------------------------
+		WDT_clear();
+		F_mSystemTimeDeal();
+		ScanTKPress();//触摸扫描
+		F_mDisplayControl();//显示处理，包括数据更新和底层扫描驱动
+		F_mAllSenseDeal();//所有传感器检测处理 
+		F_mKeyControl();//按键系统处理包括扫描和处理函数
+		F_mTransferDataDeal();//通讯或者红外数据处理接口
+        if(g_u8TestState)
+        {
+            F_mSelfTestSchdule();//自检操作
+        }
+		else
+		{
+			F_mFunctionSchdule();//功能逻辑处理，包括负载的输出控制
+		}
+		//---其他接口用于特定项目需要的特定处理模块接口----------------------
+        DCFanProc();
+		F_RgbControl_Task();
+		F_BellControl();
+        F_EepromReadCtrl();
+        F_IapWriteCtrl();
+        //---WIFI控制--------------------------------------------
+        S_API_MachineStateChange();
+        S_API_WifiUartDeal(); //发送接收处理函数
+		S_API_Wifi_main();//WIFI主函数
+		OTAProcesingTimeDeal();
+        F_mElectrolysisControl(); // 自检也必须经过电解关断检查
+	}
+}
