@@ -1,0 +1,1 @@
+"MyLib\PowerCut.C" OPTIMIZE (9,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\PowerCut.lst) OBJECT(PowerCut.obj)

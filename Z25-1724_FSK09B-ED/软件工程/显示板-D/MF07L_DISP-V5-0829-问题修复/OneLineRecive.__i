@@ -1,0 +1,1 @@
+"MyLib\OneLineRecive\OneLineRecive.c" OPTIMIZE (8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\OneLineRecive.lst) OBJECT(OneLineRecive.obj)

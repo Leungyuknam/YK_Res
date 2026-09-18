@@ -1,0 +1,20 @@
+---- F_StepMotorRsting Matches (4 in 2 files) ----
+RL_StepMotor.c (MyLib\RL_StepMotor) line 219 :  函数名称：						void	F_StepMotorRsting(unsigned char r_SMSpeedBuf )
+StepMotor.c (MyLib\StepMotor) line 220 :  函数名称：						void	F_StepMotorRsting(unsigned char r_SMSpeedBuf )
+StepMotor.c (MyLib\StepMotor) line 226 : void F_StepMotorRsting()//风门复位中
+F_StepMotorRstControl in StepMotor.c (MyLib\StepMotor) : 		F_StepMotorRsting();
+---- F_StepMotorRstInit Matches (4 in 2 files) ----
+RL_StepMotor.c (MyLib\RL_StepMotor) line 207 :  函数名称：						void	F_StepMotorRstInit(void )
+StepMotor.c (MyLib\StepMotor) line 208 :  函数名称：						void F_StepMotorRstInit(void )
+StepMotor.c (MyLib\StepMotor) line 213 : void F_StepMotorRstInit(void )//风门复位启动--初始复位角度和当前角度值
+F_StepMotorRstControl in StepMotor.c (MyLib\StepMotor) : 		F_StepMotorRstInit();
+---- Rst_Ok Matches (9 in 6 files) ----
+F_UDOscEvent in Function.c (MyLib\Function) : 		if(Rst_Ok == g_u8SMRstState)
+F_RLOscEvent in Function.c (MyLib\Function) : 		if(Rst_Ok == g_u8RL_SMRstState)
+Function.h (MyLib\Function) line 40 : 	Rst_Ok,
+F_RL_StepMotorRsting in RL_StepMotor.c (MyLib\RL_StepMotor) : 			{	g_u8RL_SMRstState = Rst_Ok;}
+F_RL_StepMotorRsting in RL_StepMotor.c (MyLib\RL_StepMotor) : 		{	g_u8RL_SMRstState = Rst_Ok;}
+RL_StepMotor.h (MyLib\RL_StepMotor) line 71 : //#define Rst_Ok		5
+F_StepMotorRsting in StepMotor.c (MyLib\StepMotor) : 			{	g_u8SMRstState = Rst_Ok;}
+F_StepMotorRsting in StepMotor.c (MyLib\StepMotor) : 		{	g_u8SMRstState = Rst_Ok;}
+StepMotor.h (MyLib\StepMotor) line 63 : //#define Rst_Ok		3

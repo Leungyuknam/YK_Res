@@ -1,0 +1,17 @@
+"STARTUP.obj",
+"mian.obj",
+"S_TouchKeyCFG.obj",
+"Common.obj",
+"McuInit.obj",
+"Interrupt.obj",
+"Function.obj",
+"KeyEvent.obj",
+"Key.obj",
+"OutDeal.obj",
+"AD.obj",
+"IAP_Init.obj",
+".\lib\SC92F8X1X_HighSensitive_lib_T1_S_T2.1.6.LIB",
+"PowerCut.obj" 
+TO "SC92F8XAX_T1_Demo_Code" 
+RAMSIZE(256) 
+CODE( 0X100 )
