@@ -1,0 +1,3 @@
+SC95F8X1X_HighSensitiveTKDynamicDebug_L_Vx.x.x.LIB  为Large模式编译库
+SC95F8X1X_HighSensitiveTKDynamicDebug_S_Vx.x.x.LIB  为Small模式编译库
+用户需要根据自身应用需要，选择不同的库文件进行编译。
